@@ -12,6 +12,8 @@ A Zed extension that provides [EmmyLua Analyzer Rust](https://github.com/EmmyLua
 - **Code Actions**: Quick fixes and refactoring suggestions
 - **Inlay Hints**: Type and parameter hints
 
+Full features guide [check here](https://github.com/EmmyLuaLs/emmylua-analyzer-rust/blob/main/docs/features/features_EN.md)
+
 ## Installation
 
 1. Open Zed
