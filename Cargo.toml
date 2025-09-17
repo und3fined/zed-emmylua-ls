@@ -1,0 +1,13 @@
+[package]
+edition = "2024"
+license = "MIT"
+name    = "zed_emmylua"
+publish = false
+version = "0.1.0"
+
+[lib]
+crate-type = ["cdylib"]
+path       = "src/emmylua.rs"
+
+[dependencies]
+zed_extension_api  = "0.7.0"

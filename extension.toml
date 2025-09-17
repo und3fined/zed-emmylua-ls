@@ -1,0 +1,17 @@
+authors        = ["und3fined <me@und3fined.com>"]
+description    = "EmmyLua a revolutionary Lua development experience in Zed"
+id             = "emmylua"
+name           = "EmmyLua for Zed"
+repository     = "https://github.com/und3fined/zed-emmylua-ls"
+schema_version = 1
+version        = "0.1.0"
+
+[language_servers.emmylua]
+language = "Lua"
+languages = [
+  "Lua",
+]
+name = "EmmnyLua Language Server"
+
+[language_servers.emmylua.language_ids]
+"Lua" = "lua"

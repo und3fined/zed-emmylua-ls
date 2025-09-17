@@ -1,0 +1,39 @@
+name: Needs reproduction
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  issues: write
+
+jobs:
+  reply-labeled:
+    if: github.repository == 'und3fined/zed-emmylua-ls'
+    runs-on: depot-ubuntu-24.04-arm-small
+    steps:
+      - name: Remove triaging label
+        if: contains(github.event.issue.labels.*.name, 'bug confirmed') && contains(github.event.issue.labels.*.name, 'needs triage')
+        uses: actions-cool/issues-helper@45d75b6cf72bf4f254be6230cb887ad002702491 # v3.6.3
+        with:
+          actions: "remove-labels"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.issue.number }}
+          labels: "needs triage"
+
+      - name: Needs reproduction
+        if: github.event.label.name == 'needs reproduction'
+        uses: actions-cool/issues-helper@45d75b6cf72bf4f254be6230cb887ad002702491 # v3.6.3
+        with:
+          actions: "create-comment, remove-labels"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            Hello @${{ github.event.issue.user.login }}, please provide a minimal reproduction. You can use one of the following options:
+
+            - Provide a link to a GitHub repository with a minimal Lua project that demonstrates the issue
+            - Include your Zed configuration and any relevant `.luarc.json` files
+            - Share the specific Lua code that triggers the problem
+
+            Issues marked with `S-Needs repro` will be **closed** if they have **no activity within 3 days**.
+          labels: "needs triage"
