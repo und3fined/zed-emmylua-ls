@@ -4,7 +4,7 @@ id             = "emmylua-ls"
 name           = "EmmyLua for Zed"
 repository     = "https://github.com/und3fined/zed-emmylua-ls"
 schema_version = 1
-version        = "0.1.0"
+version        = "0.1.1"
 
 [language_servers.emmylua]
 language = "Lua"
