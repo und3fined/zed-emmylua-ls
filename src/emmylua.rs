@@ -87,7 +87,7 @@ impl EmmyLuaExtension {
     }
 
     // Clean up the archive file
-    let _ = std::fs::remove_file(&archive_path);
+    let _ = std::fs::remove_dir_all(&archive_path);
 
     zed::set_language_server_installation_status(
       language_server_id,
