@@ -1,6 +1,6 @@
 authors        = ["und3fined <me@und3fined.com>"]
 description    = "EmmyLua a revolutionary Lua development experience in Zed"
-id             = "emmylua"
+id             = "emmylua-ls"
 name           = "EmmyLua for Zed"
 repository     = "https://github.com/und3fined/zed-emmylua-ls"
 schema_version = 1
