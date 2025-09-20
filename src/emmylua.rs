@@ -47,6 +47,18 @@ impl EmmyLuaExtension {
     ))
   }
 
+  fn sync_update_lock(&mut self, lock_file: &PathBuf, version: &str) {
+    // write emmylua_lock with new version and current timestamp
+    let current_time = SystemTime::now()
+      .duration_since(UNIX_EPOCH)
+      .unwrap()
+      .as_secs();
+    let lock_content = format!("{}\n{}", version, current_time);
+    std::fs::write(&lock_file, lock_content)
+      .map_err(|e| e.to_string())
+      .unwrap_or_else(|_| {});
+  }
+
   fn check_and_install_server(&mut self, language_server_id: &LanguageServerId) -> Result<PathBuf> {
     let emmylua_update_lock = PathBuf::from("./tmp/emmylua_update.lock");
     let mut out_of_date = true;
@@ -120,6 +132,7 @@ impl EmmyLuaExtension {
         &zed::LanguageServerInstallationStatus::None,
       );
 
+      self.sync_update_lock(&emmylua_update_lock, &latest_release.version);
       return Ok(server_path);
     }
 
@@ -159,18 +172,11 @@ impl EmmyLuaExtension {
     // Clean up the archive file
     let _ = std::fs::remove_dir_all(&archive_path);
 
-    // write emmylua_lock with new version and current timestamp
-    let current_time = SystemTime::now()
-      .duration_since(UNIX_EPOCH)
-      .unwrap()
-      .as_secs();
-    let lock_content = format!("{}\n{}", latest_release.version, current_time);
-    std::fs::write(&emmylua_update_lock, lock_content).map_err(|e| e.to_string())?;
-
     zed::set_language_server_installation_status(
       language_server_id,
       &zed::LanguageServerInstallationStatus::None,
     );
+    self.sync_update_lock(&emmylua_update_lock, &latest_release.version);
 
     Ok(server_path)
   }
