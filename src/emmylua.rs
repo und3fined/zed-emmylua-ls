@@ -1,4 +1,6 @@
+use std::env::consts::ARCH;
 use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 use zed::settings::LspSettings;
 use zed_extension_api::{
   self as zed, LanguageServerId, Result, Worktree,
@@ -45,11 +47,64 @@ impl EmmyLuaExtension {
     ))
   }
 
+  fn assets_pattern(&self) -> Result<String, String> {
+    let (platform, arch) = zed::current_platform();
+
+    let (platform_str, arch_str, extension) = match (platform, arch) {
+      (zed::Os::Mac, zed::Architecture::Aarch64) => ("darwin", "arm64", "tar.gz"),
+      (zed::Os::Mac, zed::Architecture::X8664) => ("darwin", "x64", "tar.gz"),
+      (zed::Os::Linux, zed::Architecture::Aarch64) => ("linux", "aarch64-glibc.2.17", "tar.gz"),
+      (zed::Os::Linux, zed::Architecture::X8664) => ("linux", "x64-glibc.2.17", "tar.gz"),
+      (zed::Os::Windows, zed::Architecture::Aarch64) => ("win32", "arm64", "zip"),
+      (zed::Os::Windows, zed::Architecture::X8664) => ("win32", "x64", "zip"),
+      _ => {
+        return Err(format!(
+          "unsupported platform/architecture: {platform:?}/{arch:?}"
+        ));
+      }
+    };
+
+    Ok(format!(
+      "{platform}-{arch}.{extension}",
+      platform = platform_str,
+      arch = arch_str,
+      extension = extension
+    ))
+  }
+
   fn check_and_install_server(&mut self, language_server_id: &LanguageServerId) -> Result<PathBuf> {
+    let emmylua_update_lock = PathBuf::from("./tmp/emmylua_update.lock");
+    let mut out_of_date = true;
+    let mut current_version = "latest".to_string();
+    let mut _last_checked = 0u64;
+
+    // read emmylua_lock if it exists and check content to decide if we can update
+    if emmylua_update_lock.exists() {
+      if let Ok(content) = std::fs::read_to_string(&emmylua_update_lock) {
+        let lock_info = content.split_once('\n').unwrap_or((content.as_str(), ""));
+
+        current_version = lock_info.0.trim().to_string();
+        _last_checked = if let Ok(ts) = lock_info.1.trim().parse::<u64>() {
+          ts
+        } else {
+          0
+        };
+
+        let current_time = SystemTime::now()
+          .duration_since(UNIX_EPOCH)
+          .unwrap()
+          .as_secs();
+
+        if current_time - _last_checked < 24 * 60 * 60 {
+          out_of_date = false;
+        }
+      }
+    }
+
     let binary_name = self.get_binary_name();
     let server_path = PathBuf::from("./bin").join(binary_name);
 
-    if self.binary_exists(&server_path) {
+    if self.binary_exists(&server_path) && !out_of_date {
       return Ok(server_path);
     }
 
@@ -58,16 +113,56 @@ impl EmmyLuaExtension {
       &zed::LanguageServerInstallationStatus::CheckingForUpdate,
     );
 
-    let download_url = self.get_download_url()?;
+    let release_result = zed::latest_github_release(
+      "EmmyLuaLs/emmylua-analyzer-rust",
+      zed::GithubReleaseOptions {
+        require_assets: true,
+        pre_release: false,
+      },
+    );
 
-    // Download and extract the language server
-    let (file_type, extension) = if download_url.ends_with(".zip") {
+    if release_result.is_err() {
+      if self.binary_exists(&server_path) {
+        // If we can't reach GitHub but have a binary, just use it
+        zed::set_language_server_installation_status(
+          language_server_id,
+          &zed::LanguageServerInstallationStatus::None,
+        );
+        return Ok(server_path);
+      } else {
+        return Err(format!(
+          "Failed to fetch latest release info: {}",
+          release_result.err().unwrap()
+        ));
+      }
+    }
+
+    let latest_release = release_result.unwrap();
+    if latest_release.version == current_version && self.binary_exists(&server_path) {
+      // Already up to date
+      zed::set_language_server_installation_status(
+        language_server_id,
+        &zed::LanguageServerInstallationStatus::None,
+      );
+
+      return Ok(server_path);
+    }
+
+    let assets_name = self.assets_pattern()?;
+    let archive_name = format!("emmylua_ls-{}", assets_name);
+
+    let download_url = latest_release
+      .assets
+      .iter()
+      .find(|asset| asset.name == archive_name)
+      .map(|asset| asset.download_url.clone());
+
+    let archive_path = format!("./tmp/emmylua_ls-{}", latest_release.version);
+    let (file_type, _extension) = if assets_name.ends_with(".zip") {
       (zed::DownloadedFileType::Zip, "zip")
     } else {
       (zed::DownloadedFileType::GzipTar, "tar.gz")
     };
-
-    let archive_path = format!("./emmylua_ls.{}", extension);
 
     zed::set_language_server_installation_status(
       language_server_id,
@@ -75,10 +170,10 @@ impl EmmyLuaExtension {
     );
 
     // Download the archive - this will extract to a directory without the extension
-    zed::download_file(&download_url, &archive_path, file_type)?;
+    zed::download_file(&download_url.unwrap().as_ref(), &archive_path, file_type)?;
 
     // Find the binary using recursive search
-    let found_binary_path = self.find_binary_recursively(".", binary_name)?;
+    let found_binary_path = self.find_binary_recursively("./tmp", binary_name)?;
 
     // If the binary is not in the expected location, copy it there
     if found_binary_path != server_path {
@@ -88,6 +183,14 @@ impl EmmyLuaExtension {
 
     // Clean up the archive file
     let _ = std::fs::remove_dir_all(&archive_path);
+
+    // write emmylua_lock with new version and current timestamp
+    let current_time = SystemTime::now()
+      .duration_since(UNIX_EPOCH)
+      .unwrap()
+      .as_secs();
+    let lock_content = format!("{}\n{}", latest_release.version, current_time);
+    std::fs::write(&emmylua_update_lock, lock_content).map_err(|e| e.to_string())?;
 
     zed::set_language_server_installation_status(
       language_server_id,
