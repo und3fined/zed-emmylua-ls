@@ -132,7 +132,6 @@ impl EmmyLuaExtension {
         &zed::LanguageServerInstallationStatus::None,
       );
 
-      self.sync_update_lock(&emmylua_update_lock, &latest_release.version);
       return Ok(server_path);
     }
 
