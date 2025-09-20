@@ -266,10 +266,13 @@ impl zed::Extension for EmmyLuaExtension {
     worktree: &zed::Worktree,
   ) -> Result<zed::Command> {
     let settings = LspSettings::for_worktree(language_server_id.as_ref(), worktree)?;
+    let default_bin = PathBuf::from("./bin").join(self.get_binary_name());
 
     // Check for custom binary in settings
     if let Some(binary) = settings.binary {
-      let command = binary.path.unwrap_or_else(|| "emmylua_ls".to_string());
+      let command = binary
+        .path
+        .unwrap_or_else(|| default_bin.to_string_lossy().to_string());
       let args = binary.arguments.unwrap_or_else(Vec::new);
 
       return Ok(zed::Command {
@@ -292,10 +295,6 @@ impl zed::Extension for EmmyLuaExtension {
 
     // Make sure the binary is executable
     zed::make_file_executable(server_path.to_string_lossy().as_ref())?;
-
-    // log_path based on server_path
-    let log_dir = server_path.parent().unwrap().parent().unwrap().join("logs");
-    std::fs::create_dir_all(log_dir.clone()).map_err(|e| e.to_string())?;
 
     Ok(zed::Command {
       command: server_path.to_string_lossy().to_string(),
