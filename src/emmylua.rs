@@ -22,31 +22,6 @@ impl EmmyLuaExtension {
     }
   }
 
-  fn get_download_url(&self) -> Result<String, String> {
-    let (platform, arch) = zed::current_platform();
-
-    let (platform_str, arch_str, extension) = match (platform, arch) {
-      (zed::Os::Mac, zed::Architecture::Aarch64) => ("darwin", "arm64", "tar.gz"),
-      (zed::Os::Mac, zed::Architecture::X8664) => ("darwin", "x64", "tar.gz"),
-      (zed::Os::Linux, zed::Architecture::Aarch64) => ("linux", "aarch64-glibc.2.17", "tar.gz"),
-      (zed::Os::Linux, zed::Architecture::X8664) => ("linux", "x64-glibc.2.17", "tar.gz"),
-      (zed::Os::Windows, zed::Architecture::Aarch64) => ("win32", "arm64", "zip"),
-      (zed::Os::Windows, zed::Architecture::X8664) => ("win32", "x64", "zip"),
-      _ => {
-        return Err(format!(
-          "unsupported platform/architecture: {platform:?}/{arch:?}"
-        ));
-      }
-    };
-
-    Ok(format!(
-      "https://github.com/EmmyLuaLs/emmylua-analyzer-rust/releases/latest/download/emmylua_ls-{platform}-{arch}.{extension}",
-      platform = platform_str,
-      arch = arch_str,
-      extension = extension
-    ))
-  }
-
   fn assets_pattern(&self) -> Result<String, String> {
     let (platform, arch) = zed::current_platform();
 
