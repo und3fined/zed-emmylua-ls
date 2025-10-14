@@ -15,3 +15,7 @@ name = "EmmnyLua Language Server"
 
 [language_servers.emmylua.language_ids]
 "Lua" = "lua"
+
+[grammars.lua]
+repository = "https://github.com/tree-sitter-grammars/tree-sitter-lua"
+commit = "d76023017f7485eae629cb60d406c7a1ca0f40c9"
