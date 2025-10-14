@@ -1,7 +1,8 @@
-use std::env::consts::ARCH;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
+use zed::lsp::CompletionKind;
 use zed::settings::LspSettings;
+use zed::{CodeLabel, CodeLabelSpan};
 use zed_extension_api::{
   self as zed, LanguageServerId, Result, Worktree,
   serde_json::{self, Value},
@@ -424,6 +425,52 @@ impl zed::Extension for EmmyLuaExtension {
         "paths": settings.get("resource").and_then(|v| v.get("paths")).cloned().unwrap_or_else(|| serde_json::json!([])),
       },
     })))
+  }
+
+  fn label_for_completion(
+    &self,
+    _language_server_id: &LanguageServerId,
+    completion: zed::lsp::Completion,
+  ) -> Option<CodeLabel> {
+    match completion.kind? {
+      CompletionKind::Method | CompletionKind::Function => {
+        let name_len = completion.label.find('(').unwrap_or(completion.label.len());
+        Some(CodeLabel {
+          spans: vec![CodeLabelSpan::code_range(0..completion.label.len())],
+          filter_range: (0..name_len).into(),
+          code: completion.label,
+        })
+      }
+      CompletionKind::Field => Some(CodeLabel {
+        spans: vec![CodeLabelSpan::literal(
+          completion.label.clone(),
+          Some("property".into()),
+        )],
+        filter_range: (0..completion.label.len()).into(),
+        code: Default::default(),
+      }),
+      _ => None,
+    }
+  }
+
+  fn label_for_symbol(
+    &self,
+    _language_server_id: &LanguageServerId,
+    symbol: zed::lsp::Symbol,
+  ) -> Option<CodeLabel> {
+    let prefix = "let a = ";
+    let suffix = match symbol.kind {
+      zed::lsp::SymbolKind::Method => "()",
+      _ => "",
+    };
+    let code = format!("{prefix}{}{suffix}", symbol.name);
+    Some(CodeLabel {
+      spans: vec![CodeLabelSpan::code_range(
+        prefix.len()..code.len() - suffix.len(),
+      )],
+      filter_range: (0..symbol.name.len()).into(),
+      code,
+    })
   }
 }
 

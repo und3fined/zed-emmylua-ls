@@ -4,3 +4,5 @@ node_modules
 package-lock.json
 pnpm-lock.yaml
 package.json
+.DS_Store
+grammars
