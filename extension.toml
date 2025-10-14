@@ -10,6 +10,7 @@ version        = "0.2.0"
 language = "Lua"
 languages = [
   "Lua",
+  "Lua - extra"
 ]
 name = "EmmnyLua Language Server"
 
